@@ -1,0 +1,6 @@
+{
+    "rooms" : [{"room_name" : "bedroom1", "geom": "POLYGON ((0 0, 100 0, 100 100, 0 100, 0 0))"}],
+    "doors" : [{"connection": ["livingroom", "bedroom1"], "geom" : "LINESTRING (0 0, 900 0)", "height" : 2000}] ,
+    "windows" : [{"geom": "LINESTRING (0 0, 900 0)", "bottom" : 1000, "top" :1500}]
+}
+

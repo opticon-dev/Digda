@@ -1,0 +1,137 @@
+{
+  "rooms": [
+    {
+      "id": "room_0_1757051712087",
+      "name": "거실",
+      "area": 28.5,
+      "x": 600,
+      "y": 300,
+      "color": "#FF6B6B",
+      "isSelected": false
+    },
+    {
+      "id": "room_1_1757051712087",
+      "name": "주방",
+      "area": 12.8,
+      "x": 573.2050807568878,
+      "y": 400,
+      "color": "#4ECDC4",
+      "isSelected": false
+    },
+    {
+      "id": "room_2_1757051712087",
+      "name": "식당",
+      "area": 8.2,
+      "x": 500,
+      "y": 473.2050807568877,
+      "color": "#45B7D1",
+      "isSelected": false
+    },
+    {
+      "id": "room_3_1757051712087",
+      "name": "안방",
+      "area": 16.4,
+      "x": 400,
+      "y": 500,
+      "color": "#96CEB4",
+      "isSelected": false
+    },
+    {
+      "id": "room_4_1757051712087",
+      "name": "침실1",
+      "area": 12.6,
+      "x": 300.00000000000006,
+      "y": 473.20508075688775,
+      "color": "#FFEAA7",
+      "isSelected": false
+    },
+    {
+      "id": "room_5_1757051712087",
+      "name": "침실2",
+      "area": 10.8,
+      "x": 226.79491924311225,
+      "y": 400,
+      "color": "#DDA0DD",
+      "isSelected": false
+    },
+    {
+      "id": "room_6_1757051712087",
+      "name": "안방화장실",
+      "area": 4.2,
+      "x": 200,
+      "y": 300,
+      "color": "#98D8C8",
+      "isSelected": false
+    },
+    {
+      "id": "room_7_1757051712087",
+      "name": "공용화장실",
+      "area": 3.8,
+      "x": 226.79491924311228,
+      "y": 199.99999999999997,
+      "color": "#F7DC6F",
+      "isSelected": false
+    },
+    {
+      "id": "room_8_1757051712087",
+      "name": "현관",
+      "area": 4.5,
+      "x": 299.9999999999999,
+      "y": 126.79491924311233,
+      "color": "#BB8FCE",
+      "isSelected": false
+    },
+    {
+      "id": "room_9_1757051712087",
+      "name": "팬트리",
+      "area": 2.1,
+      "x": 399.99999999999994,
+      "y": 100,
+      "color": "#85C1E9",
+      "isSelected": false
+    },
+    {
+      "id": "room_10_1757051712087",
+      "name": "드레스룸",
+      "area": 5.2,
+      "x": 500,
+      "y": 126.79491924311228,
+      "color": "#FF6B6B",
+      "isSelected": false
+    },
+    {
+      "id": "room_11_1757051712087",
+      "name": "복도",
+      "area": 6.8,
+      "x": 573.2050807568877,
+      "y": 199.99999999999991,
+      "color": "#4ECDC4",
+      "isSelected": false
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn_1757051721577",
+      "fromRoom": "room_5_1757051712087",
+      "toRoom": "room_3_1757051712087",
+      "relationshipType": "adjacent",
+      "strength": 3,
+      "description": "",
+      "isDirectional": false
+    },
+    {
+      "id": "conn_1757051725944",
+      "fromRoom": "room_4_1757051712087",
+      "toRoom": "room_0_1757051712087",
+      "relationshipType": "adjacent",
+      "strength": 3,
+      "description": "",
+      "isDirectional": false
+    }
+  ],
+  "metadata": {
+    "created": "2025-09-05T05:55:59.114Z",
+    "totalRooms": 12,
+    "totalConnections": 2
+  }
+}
