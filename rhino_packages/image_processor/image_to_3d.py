@@ -31,6 +31,23 @@ class ImageProcessor:
         self.client = openai.OpenAI(api_key=OPENAI_API_KEY)
         os.environ["REPLICATE_API_TOKEN"] = REPLICATE_API_TOKEN
 
+    def process_1(self, image):
+        # 단계 1: 가구 인식 및 크롭
+        print("\n🔥 [단계 1] 가구 인식 및 크롭 시작...")
+        step1_result = FurnitureCropper(self.client).process(image)
+
+        if not step1_result:
+            print("❌ 단계 1 실패: 가구 인식에 실패했습니다.")
+            return None
+
+        print(
+            f"✅ 단계 1 완료: {len(step1_result['detected_furniture'])}개 가구 처리됨"
+        )
+
+        # 단계 2: 배경 제거
+        print("\n🔥 [단계 2] Bria 배경 제거 시작...")
+        step2_result = BackgroundRemover().process()
+
     def run_complete_furniture_pipeline(self, image_path):
         """가구 인식부터 3D 모델까지 전체 파이프라인 실행"""
         try:
@@ -53,7 +70,7 @@ class ImageProcessor:
 
             # 단계 2: 배경 제거
             print("\n🔥 [단계 2] Bria 배경 제거 시작...")
-            step2_result = process_furniture_background_removal_bria()
+            step2_result = BackgroundRemover().process()
 
             if not step2_result:
                 print("❌ 단계 2 실패: 배경 제거에 실패했습니다.")
@@ -66,7 +83,7 @@ class ImageProcessor:
 
             # 단계 3: 3D 변환
             print("\n🔥 [단계 3] HunYuan3D 3D 변환 시작...")
-            step3_result = process_furniture_3d_conversion()
+            step3_result = ImgToModeling().process()
 
             if not step3_result:
                 print("❌ 단계 3 실패: 3D 변환에 실패했습니다.")
