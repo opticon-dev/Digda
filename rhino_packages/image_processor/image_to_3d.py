@@ -8,6 +8,7 @@ import requests
 import time
 import shutil
 from datetime import datetime
+import io
 
 # =============================================================================
 # 기본 유틸리티 함수들
@@ -20,6 +21,10 @@ def encode_image_to_base64(image_path):
         return base64.b64encode(image_file.read()).decode("utf-8")
 
 
+def image_buffer_to_base64(image_buffer):
+    return base64.b64encode(image_buffer).decode("utf-8")
+
+
 class ImageProcessor:
     def __init__(self, OPENAI_API_KEY, REPLICATE_API_TOKEN):
         # 1. API 키 설정 (코드의 맨 위에 위치)
@@ -28,13 +33,13 @@ class ImageProcessor:
         # Replicate API 키: https://replicate.com/account/api-tokens
         REPLICATE_API_TOKEN = None
 
-        self.client = openai.OpenAI(api_key=OPENAI_API_KEY)
-        os.environ["REPLICATE_API_TOKEN"] = REPLICATE_API_TOKEN
+        self.open_ai_client = openai.OpenAI(api_key=OPENAI_API_KEY)
+        self.replicate_client = replicate.Client(api_token=REPLICATE_API_TOKEN)
 
     def process_1(self, image):
         # 단계 1: 가구 인식 및 크롭
         print("\n🔥 [단계 1] 가구 인식 및 크롭 시작...")
-        step1_result = FurnitureCropper(self.client).process(image)
+        step1_result = FurnitureCropper(self.open_ai_client).process(image)
 
         if not step1_result:
             print("❌ 단계 1 실패: 가구 인식에 실패했습니다.")
@@ -46,7 +51,7 @@ class ImageProcessor:
 
         # 단계 2: 배경 제거
         print("\n🔥 [단계 2] Bria 배경 제거 시작...")
-        step2_result = BackgroundRemover().process()
+        step2_result = BackgroundRemover(self.replicate_client).process()
 
     def run_complete_furniture_pipeline(self, image_path):
         """가구 인식부터 3D 모델까지 전체 파이프라인 실행"""
@@ -58,7 +63,7 @@ class ImageProcessor:
 
             # 단계 1: 가구 인식 및 크롭
             print("\n🔥 [단계 1] 가구 인식 및 크롭 시작...")
-            step1_result = FurnitureCropper(self.client).process(image_path)
+            step1_result = FurnitureCropper(self.open_ai_client).process(image_path)
 
             if not step1_result:
                 print("❌ 단계 1 실패: 가구 인식에 실패했습니다.")
@@ -70,7 +75,7 @@ class ImageProcessor:
 
             # 단계 2: 배경 제거
             print("\n🔥 [단계 2] Bria 배경 제거 시작...")
-            step2_result = BackgroundRemover().process()
+            step2_result = BackgroundRemover(self.replicate_client).process()
 
             if not step2_result:
                 print("❌ 단계 2 실패: 배경 제거에 실패했습니다.")
@@ -83,7 +88,7 @@ class ImageProcessor:
 
             # 단계 3: 3D 변환
             print("\n🔥 [단계 3] HunYuan3D 3D 변환 시작...")
-            step3_result = ImgToModeling().process()
+            step3_result = ImgToModeling(self.replicate_client).process()
 
             if not step3_result:
                 print("❌ 단계 3 실패: 3D 변환에 실패했습니다.")
@@ -207,7 +212,6 @@ class FurnitureCropper:
 
         # 4. 결과 저장 (크기 분석 포함)
         result_data = {
-            "source_image": image_path,
             "detected_furniture": furniture_list,
             "cropped_images": cropped_results,
             "size_analysis": size_analysis,  # 새로 추가된 크기 분석 정보
@@ -225,7 +229,7 @@ class FurnitureCropper:
                 ),
             },
         }
-
+        print(result_data)
         # JSON으로 결과 저장
         with open(
             "step1_furniture_detection_filtered.json", "w", encoding="utf-8"
@@ -244,169 +248,177 @@ class FurnitureCropper:
 
     def _detect_furniture_with_gpt_filtered(self, image_path):
         """GPT API를 사용하여 가구를 인식하고 중복 제거"""
-        try:
-            print(f"🔍 이미지 분석 시작: {image_path}")
+        print(f"🔍 이미지 분석 시작: {image_path}")
 
-            # 이미지 크기 확인
+        if isinstance(image_path, str):
+            # 파일 경로
             with Image.open(image_path) as img:
-                img_width, img_height = img.size
-            print(f"📐 이미지 크기: {img_width} x {img_height}")
-
-            # Base64 인코딩
+                img_width, img_height = img.width, img.height
             base64_image = encode_image_to_base64(image_path)
 
-            # GPT 프롬프트 (주요 가구 중심)
-            prompt = f"""
-    당신은 인테리어 전문가입니다. 이 거실 사진에서 주요 가구들을 정확히 찾아주세요.
+        elif isinstance(image_path, bytes):
+            # raw bytes
+            img = Image.open(io.BytesIO(image_path))
+            img_width, img_height = img.width, img.height
+            base64_image = image_buffer_to_base64(image_path)
 
-    이미지 크기: {img_width} x {img_height} 픽셀
+        elif isinstance(image_path, io.BytesIO):
+            # 이미 BytesIO 객체
+            img = Image.open(image_path)
+            img_width, img_height = img.width, img.height
+            # BytesIO → bytes 변환해서 base64 인코딩
+            base64_image = image_buffer_to_base64(image_path.getvalue())
 
-    우선순위별 가구 목록:
+        else:
+            raise TypeError(f"지원하지 않는 타입: {type(image_path)}")
+        # GPT 프롬프트 (주요 가구 중심)
+        prompt = f"""
+당신은 인테리어 전문가입니다. 이 거실 사진에서 주요 가구들을 정확히 찾아주세요.
 
-    🏠 대형 가구 (최우선):
-    - 소파, 쇼파 (sofa, couch, sectional)
-    - 큰 테이블 (dining table, large coffee table)
-    - 큰 선반/책장 (bookshelf, large cabinet)
-    - 침대 (bed, mattress)
+이미지 크기: {img_width} x {img_height} 픽셀
 
-    🪑 중형 가구:
-    - 의자 (chair, armchair, recliner)
-    - 작은 테이블 (side table, coffee table)
-    - TV/모니터 (television, monitor)
-    - 사다리 (ladder, step)
+우선순위별 가구 목록:
 
-    🧸 소형 가구/소품:
-    - 조명 (lamp, floor lamp)
-    - 식물/화분 (plant, pot)
-    - 장식품 (decoration, vase)
-    - 쿠션 (cushion, pillow)
+🏠 대형 가구 (최우선):
+- 소파, 쇼파 (sofa, couch, sectional)
+- 큰 테이블 (dining table, large coffee table)
+- 큰 선반/책장 (bookshelf, large cabinet)
+- 침대 (bed, mattress)
 
-    중요 지침:
-    1. 큰 가구를 우선적으로 인식
-    2. 각 가구는 충분히 큰 크기여야 함 (최소 50x50 픽셀)
-    3. 명확하게 구분되는 개별 가구만 포함
-    4. 애매하거나 일부만 보이는 것은 제외
+🪑 중형 가구:
+- 의자 (chair, armchair, recliner)
+- 작은 테이블 (side table, coffee table)
+- TV/모니터 (television, monitor)
+- 사다리 (ladder, step)
 
-    JSON 형식으로만 응답:
+🧸 소형 가구/소품:
+- 조명 (lamp, floor lamp)
+- 식물/화분 (plant, pot)
+- 장식품 (decoration, vase)
+- 쿠션 (cushion, pillow)
+
+중요 지침:
+1. 큰 가구를 우선적으로 인식
+2. 각 가구는 충분히 큰 크기여야 함 (최소 50x50 픽셀)
+3. 명확하게 구분되는 개별 가구만 포함
+4. 애매하거나 일부만 보이는 것은 제외
+
+JSON 형식으로만 응답:
+{{
+"furniture_list": [
     {{
-    "furniture_list": [
-        {{
-        "name": "구체적인_가구_이름",
-        "category": "large/medium/small", 
-        "priority": "high/medium/low",
-        "box": [x1, y1, x2, y2],
-        "confidence": "high/medium/low"
-        }}
-    ]
+    "name": "구체적인_가구_이름",
+    "category": "large/medium/small", 
+    "priority": "high/medium/low",
+    "box": [x1, y1, x2, y2],
+    "confidence": "high/medium/low"
     }}
+]
+}}
 
-    좌표 규칙:
-    - [x1, y1] = 왼쪽 위 모서리
-    - [x2, y2] = 오른쪽 아래 모서리
-    - 0 ≤ x1 < x2 ≤ {img_width}
-    - 0 ≤ y1 < y2 ≤ {img_height}
+좌표 규칙:
+- [x1, y1] = 왼쪽 위 모서리
+- [x2, y2] = 오른쪽 아래 모서리
+- 0 ≤ x1 < x2 ≤ {img_width}
+- 0 ≤ y1 < y2 ≤ {img_height}
 
-    설명 없이 JSON만 반환하세요.
-            """
+설명 없이 JSON만 반환하세요.
+        """
 
-            # GPT API 호출
-            response = self.open_ai_client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{base64_image}",
-                                    "detail": "high",
-                                },
+        # GPT API 호출
+        response = self.open_ai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}",
+                                "detail": "high",
                             },
-                        ],
-                    }
-                ],
-                max_tokens=3000,
-                temperature=0.1,
+                        },
+                    ],
+                }
+            ],
+            max_tokens=3000,
+            temperature=0.1,
+        )
+
+        # 응답 처리
+        response_text = response.choices[0].message.content.strip()
+        print(f"📝 GPT 응답 받음 (길이: {len(response_text)}자)")
+
+        # JSON 추출
+        json_str = response_text.replace("```json", "").replace("```", "").strip()
+
+        try:
+            data = json.loads(json_str)
+            furniture_list = data.get("furniture_list", [])
+
+            print(f"✅ 총 {len(furniture_list)}개 가구 발견")
+
+            # 좌표 검증 및 정리
+            valid_furniture = []
+            for item in furniture_list:
+                name = item.get("name", "unknown")
+                category = item.get("category", "medium")
+                priority = item.get("priority", "medium")
+                box = item.get("box", [])
+                confidence = item.get("confidence", "medium")
+
+                if len(box) == 4:
+                    x1, y1, x2, y2 = box
+
+                    # 좌표 범위 확인 및 수정
+                    x1 = max(0, min(x1, img_width - 1))
+                    x2 = max(x1 + 10, min(x2, img_width))
+                    y1 = max(0, min(y1, img_height - 1))
+                    y2 = max(y1 + 10, min(y2, img_height))
+
+                    # 최소 크기 확인 (50x50 픽셀 이상)
+                    if (x2 - x1) >= 50 and (y2 - y1) >= 50:
+                        area = (x2 - x1) * (y2 - y1)
+                        valid_furniture.append(
+                            {
+                                "name": name,
+                                "category": category,
+                                "priority": priority,
+                                "box": [x1, y1, x2, y2],
+                                "confidence": confidence,
+                                "area": area,
+                                "size": f"{x2-x1}x{y2-y1}",
+                            }
+                        )
+                        print(
+                            f"✅ {name} ({category}/{priority}): [{x1},{y1},{x2},{y2}] - {x2-x1}x{y2-y1}"
+                        )
+                    else:
+                        print(f"⚠️  {name}: 너무 작음 ({x2-x1}x{y2-y1})")
+                else:
+                    print(f"❌ {name}: 좌표 형식 오류")
+
+            # 크기별 분류
+            large_furniture, medium_furniture, small_furniture = (
+                self.categorize_furniture_by_size(
+                    valid_furniture, img_width, img_height
+                )
             )
 
-            # 응답 처리
-            response_text = response.choices[0].message.content.strip()
-            print(f"📝 GPT 응답 받음 (길이: {len(response_text)}자)")
+            # 중복 제거 (큰 가구부터 우선)
+            all_furniture = large_furniture + medium_furniture + small_furniture
+            filtered_furniture = self.filter_overlapping_furniture(
+                all_furniture, overlap_threshold=0.6
+            )
 
-            # JSON 추출
-            json_str = response_text.replace("```json", "").replace("```", "").strip()
+            print(f"📋 최종 선택된 가구: {len(filtered_furniture)}개")
+            return filtered_furniture
 
-            try:
-                data = json.loads(json_str)
-                furniture_list = data.get("furniture_list", [])
-
-                print(f"✅ 총 {len(furniture_list)}개 가구 발견")
-
-                # 좌표 검증 및 정리
-                valid_furniture = []
-                for item in furniture_list:
-                    name = item.get("name", "unknown")
-                    category = item.get("category", "medium")
-                    priority = item.get("priority", "medium")
-                    box = item.get("box", [])
-                    confidence = item.get("confidence", "medium")
-
-                    if len(box) == 4:
-                        x1, y1, x2, y2 = box
-
-                        # 좌표 범위 확인 및 수정
-                        x1 = max(0, min(x1, img_width - 1))
-                        x2 = max(x1 + 10, min(x2, img_width))
-                        y1 = max(0, min(y1, img_height - 1))
-                        y2 = max(y1 + 10, min(y2, img_height))
-
-                        # 최소 크기 확인 (50x50 픽셀 이상)
-                        if (x2 - x1) >= 50 and (y2 - y1) >= 50:
-                            area = (x2 - x1) * (y2 - y1)
-                            valid_furniture.append(
-                                {
-                                    "name": name,
-                                    "category": category,
-                                    "priority": priority,
-                                    "box": [x1, y1, x2, y2],
-                                    "confidence": confidence,
-                                    "area": area,
-                                    "size": f"{x2-x1}x{y2-y1}",
-                                }
-                            )
-                            print(
-                                f"✅ {name} ({category}/{priority}): [{x1},{y1},{x2},{y2}] - {x2-x1}x{y2-y1}"
-                            )
-                        else:
-                            print(f"⚠️  {name}: 너무 작음 ({x2-x1}x{y2-y1})")
-                    else:
-                        print(f"❌ {name}: 좌표 형식 오류")
-
-                # 크기별 분류
-                large_furniture, medium_furniture, small_furniture = (
-                    self.categorize_furniture_by_size(
-                        valid_furniture, img_width, img_height
-                    )
-                )
-
-                # 중복 제거 (큰 가구부터 우선)
-                all_furniture = large_furniture + medium_furniture + small_furniture
-                filtered_furniture = self.filter_overlapping_furniture(
-                    all_furniture, overlap_threshold=0.6
-                )
-
-                print(f"📋 최종 선택된 가구: {len(filtered_furniture)}개")
-                return filtered_furniture
-
-            except json.JSONDecodeError as e:
-                print(f"❌ JSON 파싱 실패: {e}")
-                print(f"응답 내용: {response_text[:500]}...")
-                return []
-
-        except Exception as e:
-            print(f"❌ 가구 인식 오류: {e}")
+        except json.JSONDecodeError as e:
+            print(f"❌ JSON 파싱 실패: {e}")
+            print(f"응답 내용: {response_text[:500]}...")
             return []
 
     def filter_overlapping_furniture(self, furniture_list, overlap_threshold=0.7):
@@ -681,8 +693,8 @@ class BackgroundRemover:
     # =============================================================================
     # 단계 2: Bria Remove Background 모델 사용
     # =============================================================================
-    def __init__(self):
-        pass
+    def __init__(self, replicate_client):
+        self.replicate_client = replicate_client
 
     def process(
         self,
@@ -810,7 +822,7 @@ class BackgroundRemover:
             print(f"🎭 Bria 배경 제거 시작: {os.path.basename(image_path)}")
 
             # Bria 모델 실행
-            output = replicate.run(
+            output = self.replicate_client.run(
                 "bria/remove-background",
                 input={
                     "image": open(image_path, "rb"),
@@ -834,8 +846,8 @@ class BackgroundRemover:
 
 
 class ImgToModeling:
-    def __init__(self):
-        pass
+    def __init__(self, replicate_client):
+        self.replicate_client = replicate_client
 
     # =============================================================================
     # 단계 3: HunYuan3D 모델을 사용한 3D 변환
@@ -851,7 +863,7 @@ class ImgToModeling:
             }
 
             # HunYuan3D 모델 실행
-            output = replicate.run(
+            output = self.replicate_client.run(
                 "ndreca/hunyuan3d-2:0602bae6db1ce420f2690339bf2feb47e18c0c722a1f02e9db9abd774abaff5d",
                 input=input_data,
             )
