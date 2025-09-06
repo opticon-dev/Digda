@@ -1,74 +1,50 @@
 {
   "detected_furniture": [
     {
-      "name": "큰 캐비닛",
+      "name": "소파",
       "category": "large",
       "priority": "high",
       "box": [
-        0,
-        400,
-        1920,
-        1080
+        100,
+        200,
+        700,
+        500
       ],
       "confidence": "high",
-      "area": 1305600,
-      "size": "1920x680",
-      "area_ratio": 0.6296296296296297
+      "area": 180000,
+      "size": "600x300",
+      "area_ratio": 0.08680555555555555
     },
     {
       "name": "큰 선반",
       "category": "large",
       "priority": "high",
       "box": [
-        800,
-        200,
         1200,
-        300
+        300,
+        1800,
+        600
       ],
       "confidence": "high",
-      "area": 40000,
-      "size": "400x100",
-      "area_ratio": 0.019290123456790122
+      "area": 180000,
+      "size": "600x300",
+      "area_ratio": 0.08680555555555555
+    },
+    {
+      "name": "조명",
+      "category": "small",
+      "priority": "low",
+      "box": [
+        750,
+        450,
+        800,
+        550
+      ],
+      "confidence": "medium",
+      "area": 5000,
+      "size": "50x100",
+      "area_ratio": 0.0024112654320987653
     }
   ],
-  "cropped_images": [],
-  "size_analysis": {
-    "image_dimensions": {
-      "width": 1920,
-      "height": 1080
-    },
-    "total_image_area": 2073600,
-    "largest_furniture_area": 1305600,
-    "furniture_count": 2,
-    "size_distribution": {
-      "large": 1,
-      "medium": 1,
-      "small": 0
-    },
-    "furniture_size_comparison": [
-      {
-        "name": "큰 캐비닛",
-        "absolute_area": 1305600,
-        "area_ratio_to_image": "62.96%",
-        "area_ratio_to_largest": "100.0%",
-        "size_rank": "대형",
-        "relative_size_score": 100.0
-      },
-      {
-        "name": "큰 선반",
-        "absolute_area": 40000,
-        "area_ratio_to_image": "1.93%",
-        "area_ratio_to_largest": "3.1%",
-        "size_rank": "중형",
-        "relative_size_score": 3.1
-      }
-    ]
-  },
-  "summary": {
-    "total_detected": 2,
-    "successfully_cropped": 0,
-    "large_furniture": 2,
-    "medium_furniture": 0,
-    "small_furniture": 0
-  }
-}
+  "cropped_images": [
+    
