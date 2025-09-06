@@ -79,14 +79,13 @@ class ImageProcessor:
 
     def process_2(self, selected_images):
         print("\n🔥 [단계 3] HunYuan3D 3D 변환 시작...")
-        step3_result = ImgToModeling(self.replicate_client).process(selected_images)
+        processed_files = ImgToModeling(self.replicate_client).process(selected_images)
 
-        if not step3_result:
+        if not processed_files:
             print("❌ 단계 3 실패: 3D 변환에 실패했습니다.")
             return None
 
-        success_count_3 = len([f for f in step3_result if f.get("status") == "success"])
-        print(f"✅ 단계 3 완료: {success_count_3}개 3D 모델 생성됨")
+        return processed_files
 
 
 # =============================================================================
@@ -1186,7 +1185,7 @@ class ImgToModeling:
                         "model_used": "ndreca/hunyuan3d-2",
                         "status": "success",
                     }
-                    processed_files.append(file_info)
+                    processed_files.append(output_path)
                     print(f"   📊 3D 모델 크기: {model_size:,} bytes")
                     print(f"   💾 저장됨: {output_filename}")
 

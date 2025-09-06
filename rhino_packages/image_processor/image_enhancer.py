@@ -1,9 +1,97 @@
 import requests
 
+import os
+from PIL import Image
+import io
+
+
+def upscale(client, image: io.BytesIO):
+
+    # Step2 폴더의 모든 이미지 파일 처리
+    # 이미지 업스케일링
+    output = client.run(
+        "bria/increase-resolution",
+        input={
+            "sync": True,
+            "image": image,
+            "preserve_alpha": True,
+            "desired_increase": 4,
+            "content_moderation": False,
+        },
+    )
+
+    return output.read()
+
+
+def run_flux_nano_banana(client, image, prompt):
+    output = client.run(
+        "google/nano-banana",
+        input={"prompt": prompt, "image_input": [image], "output_format": "jpg"},
+    )
+
+    # To access the file URL:
+    # => "http://example.com"
+
+    # To write the file to disk:
+
+    return output.read()
+
+
+def run_flux_kontext_dev(client, image: io.BytesIO, prompt):
+    output = client.run(
+        "black-forest-labs/flux-kontext-dev",
+        input={
+            "prompt": prompt,
+            "go_fast": True,
+            "guidance": 2.5,
+            "input_image": image,
+            "aspect_ratio": "match_input_image",
+            "output_format": "jpg",
+            "output_quality": 80,
+            "num_inference_steps": 30,
+        },
+    )
+
+    return output.read()
+
+
+def run_flux_dev(
+    client,
+    image: io.BytesIO,
+    prompt,
+    filename,
+    num_inference_steps=50,
+    guidance_scale=7.5,
+    prompt_strength=0.8,
+    seed=None,
+):
+    """
+    Flux-dev 모델을 실행하는 함수
+    """
+    input = {
+        "image": image,
+        "prompt": prompt,
+        "output_format": "png",
+        "num_inference_steps": num_inference_steps,
+        "guidance_scale": guidance_scale,
+        "prompt_strength": prompt_strength,
+    }
+
+    if seed is not None:
+        input["seed"] = seed
+
+    output = client.run("black-forest-labs/flux-dev", input=input)
+
+    for index, item in enumerate(output):
+        if index == 0:
+            with open(filename, "wb") as file:
+                file.write(item.read())
+            return item.read()
+
 
 def run_youzu(
     client,
-    image_path,
+    image,
     prompt,
     filename,
     negative_prompt="",
@@ -12,10 +100,7 @@ def run_youzu(
     prompt_strength=0.8,
     seed=None,
 ):
-    if isinstance(image_path, str):
-        image = open(image_path, "rb")
-    else:
-        image = image_path
+
     input = {
         "image": image,
         "prompt": prompt,
